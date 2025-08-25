@@ -10,27 +10,29 @@ public class Db {
   }
 
   public static Connection get() throws Exception {
-    String url = System.getenv("DATABASE_URL");
-    if (url == null || url.isBlank()) return null;
+  String url = System.getenv("DATABASE_URL");
+  if (url == null || url.isBlank()) return null;
 
-    String jdbcUrl, user = null, pass = null;
+  String jdbcUrl, user = null, pass = null;
 
-    if (url.startsWith("postgres://")) {
-      URI u = URI.create(url);
-      String[] up = (u.getUserInfo()==null) ? new String[]{"",""} : u.getUserInfo().split(":",2);
-      user = up.length>0? up[0] : "";
-      pass = up.length>1? up[1] : "";
-      String host = u.getHost();
-      int port = (u.getPort()==-1) ? 5432 : u.getPort();
-      String db   = u.getPath().replaceFirst("/", "");
-      jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + db + "?sslmode=require";
-    } else if (url.startsWith("jdbc:postgresql://")) {
-      jdbcUrl = url;
-      user = System.getenv("DB_USER");
-      pass = System.getenv("DB_PASSWORD");
-    } else {
-      throw new IllegalArgumentException("Unsupported DATABASE_URL: " + url);
-    }
+  // ★ 同时接受 postgresql:// 或 postgres://
+  if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
+    String norm = url.replaceFirst("^postgresql://", "postgres://");
+    URI u = URI.create(norm);
+    String[] up = (u.getUserInfo()==null) ? new String[]{"",""} : u.getUserInfo().split(":",2);
+    user = up.length>0? up[0] : "";
+    pass = up.length>1? up[1] : "";
+    String host = u.getHost();
+    int port = (u.getPort()==-1) ? 5432 : u.getPort();   // 没写端口就用 5432
+    String db   = u.getPath().replaceFirst("/", "");
+    jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + db + "?sslmode=require";
+  } else if (url.startsWith("jdbc:postgresql://")) {
+    jdbcUrl = url;
+    user = System.getenv("DB_USER");
+    pass = System.getenv("DB_PASSWORD");
+  } else {
+    throw new IllegalArgumentException("Unsupported DATABASE_URL: " + url);
+  }
 
     Class.forName("org.postgresql.Driver");
     return DriverManager.getConnection(jdbcUrl, user, pass);
